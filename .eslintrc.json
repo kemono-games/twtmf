@@ -17,5 +17,8 @@
     "plugin:@typescript-eslint/recommended-requiring-type-checking",
     "prettier"
   ],
-  "rules": {}
+  "rules": {
+    "@typescript-eslint/restrict-template-expressions": 0,
+    "@typescript-eslint/no-unsafe-call": 0
+  }
 }

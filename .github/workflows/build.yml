@@ -12,5 +12,3 @@ jobs:
         run: yarn
       - name: Build
         run: yarn build
-      - name: Bundle
-        run: yarn bundle

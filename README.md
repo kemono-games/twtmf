@@ -1,16 +1,6 @@
-# typescript-swc-starter
+# Twtmf
 
-A simple node boilerplate made in typescript using swc which generates `cjs` and `esm` modules.
-
-## Clone repository and install dependencies
-
-```sh
-git clone https://github.com/maxgfr/typescript-swc-starter # For cloning the repository
-cd typescript-swc-starter # To navigate to the repository root
-yarn # Install dependencies
-```
-
-:warning: You have to use at least `node@20` to run this project.
+Means Tw_____ the mother f__ker
 
 ## Commands
 

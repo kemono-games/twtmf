@@ -8,6 +8,8 @@ import errorMiddleware from '@/middlewares/error.middleware';
 import { logger, stream } from '@/utils/logger';
 import validateEnv from '@/utils/validateEnv';
 
+import authMiddleware from './middlewares/auth.middleware';
+
 validateEnv();
 
 const app = express();
@@ -21,6 +23,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/health', (_, res) => res.send('OK'));
+
+app.use(authMiddleware);
+
+// APIs
 
 app.use(errorMiddleware);
 

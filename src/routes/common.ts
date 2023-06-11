@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import * as t from 'io-ts'
 
 import { TW_COOKIES } from '@/config'
 import TwtmfCrawler from '@/crawler'
 
 const router = Router()
 const twtmf = new TwtmfCrawler(TW_COOKIES)
+twtmf.init()
 
 router.get('/tweet/:id', async (req, res) => {
   const id = req.params.id

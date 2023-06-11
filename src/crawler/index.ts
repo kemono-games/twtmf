@@ -14,6 +14,7 @@ import { defaultRequestHandler } from './utils'
 export default class TwtmfCrawler {
   private browser: Browser | null = null
   private cookie: Protocol.Network.CookieParam[] | null = null
+  private inited = false
 
   constructor(cookie?: string) {
     this.cookie = cookie
@@ -34,6 +35,8 @@ export default class TwtmfCrawler {
   }
 
   async init() {
+    if (this.inited) return
+    this.inited = true
     this.browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox'],

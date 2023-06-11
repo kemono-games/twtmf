@@ -35,7 +35,7 @@ export default class TwtmfCrawler {
 
   async init() {
     this.browser = await puppeteer.launch({
-      headless: false,
+      headless: 'new',
       args: ['--no-sandbox'],
       defaultViewport: {
         width: 393,

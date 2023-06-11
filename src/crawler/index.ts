@@ -2,33 +2,14 @@ import puppeteer, {
   Browser,
   HTTPResponse,
   KnownDevices,
+  Page,
   Protocol,
-  ResourceType,
 } from 'puppeteer'
 
 import { delay } from '@/utils'
-import { logger } from '@/utils/logger'
 
-const ABORT_RESOURCE_TYPES: ResourceType[] = ['image', 'media', 'font']
-const ABORT_SCRIPT_URL_KEYWORDS = [
-  'shared~loader.video',
-  'EmojiPicker',
-  'emoji',
-  'bundle.NetworkInstrument',
-  'loader.PushNotificationsPrompt',
-  'google',
-]
-const ABORT_XHR_URL_KEYWORDS = [
-  'events',
-  'client_event.json',
-  'log.json',
-  'init.json',
-  '/keyregistry/register',
-  'getAltTextPromptPreference',
-  'hashflags.json',
-  'settings.json',
-  'AudioSpaceById',
-]
+import { Tweet } from './types'
+import { defaultRequestHandler } from './utils'
 
 export default class TwtmfCrawler {
   private browser: Browser | null = null
@@ -61,75 +42,45 @@ export default class TwtmfCrawler {
         height: 851,
       },
     })
-    logger.info('Browser launched')
   }
 
   private async newPage(
     url: string,
-    requestHandler?: (r: HTTPResponse) => Promise<void>,
-  ) {
+    responseHandler?: (r: HTTPResponse) => Promise<void>,
+  ): Promise<Page> {
+    if (!this.browser) throw new Error('Browser is not initialized')
     const page = await this.browser.newPage()
     await page.emulate(KnownDevices['iPhone 13 Pro'])
     await page.setBypassServiceWorker(true)
     await page.setRequestInterception(true)
 
-    page.on('request', (req) => {
-      if (req.url().includes('sw.js')) {
-        req.abort()
-      }
-      if (ABORT_RESOURCE_TYPES.includes(req.resourceType())) {
-        req.abort()
-      } else if (req.resourceType() === 'script') {
-        if (
-          ABORT_SCRIPT_URL_KEYWORDS.some((keyword) =>
-            req.url().includes(keyword),
-          )
-        ) {
-          req.abort()
-        } else {
-          req.continue()
-        }
-      } else if (req.resourceType() === 'xhr') {
-        if (
-          ABORT_XHR_URL_KEYWORDS.some((keyword) => req.url().includes(keyword))
-        ) {
-          req.abort()
-        } else {
-          req.continue()
-        }
-      } else {
-        req.continue()
-      }
-    })
-
-    if (requestHandler) {
-      page.on('response', (res) => {
-        requestHandler(res)
-      })
+    page.on('request', defaultRequestHandler)
+    if (responseHandler) {
+      page.on('response', responseHandler)
     }
 
     if (this.cookie) {
       await page.setCookie(...this.cookie)
-      logger.info('Cookies set')
     }
     await page.goto(url)
     return page
   }
 
-  public async screenName() {
+  public async screenName(): Promise<string> {
     if (!this.cookie) {
       throw new Error('Cookie is not set')
     }
-    logger.info('Start getting screen name')
     const page = await this.newPage(`https://twitter.com/home`)
     const html = await page.content()
     const screenName = html.match(/"screen_name":"(\w{1,15})"/)?.[1]
-    logger.info(`Screen name: ${screenName}`)
     await page.close()
     return screenName
   }
 
-  public async timeline(opt?: { screenName?: string; limit?: number }) {
+  public async timeline(opt?: {
+    screenName?: string
+    limit?: number
+  }): Promise<Tweet[]> {
     const { screenName, limit = 100 } = opt ?? {}
     const tweets = []
     const cursors = []
@@ -164,7 +115,6 @@ export default class TwtmfCrawler {
     }
 
     const target = screenName ?? (await this.screenName())
-    logger.info(`Start getting timeline of ${target}`)
     const page = await this.newPage(
       `https://twitter.com/${target}`,
       responseHandler,
@@ -177,10 +127,7 @@ export default class TwtmfCrawler {
     )
 
     while (tweets.length < limit) {
-      if (error) {
-        logger.warn(error)
-        throw error
-      }
+      if (error) throw error
 
       await page.mouse.wheel({ deltaY: 1000 })
       if (cursors.some((e) => e.content.stopOnEmptyResponse)) {
@@ -189,13 +136,12 @@ export default class TwtmfCrawler {
       await delay(10)
     }
 
-    logger.info(`Got ${tweets.length} entries`)
     return tweets
       .sort((a, b) => a.sortIndex - b.sortIndex)
-      .map((e) => e.content.itemContent.tweet_results.result.legacy)
+      .map((e) => e.content.itemContent.tweet_results.result.legacy) as Tweet[]
   }
 
-  public tweet(id: string) {
+  public tweet(id: string): Promise<Tweet> {
     return new Promise((resolve, reject) => {
       const responseHandler = async (res: HTTPResponse) => {
         if (res.request().resourceType() !== 'xhr') return
@@ -203,7 +149,6 @@ export default class TwtmfCrawler {
         if (res.url().includes('/TweetDetail')) {
           const json = await res.json()
           if (json.errors?.[0]) {
-            logger.warn(json.errors[0].message)
             return reject(json.errors[0]?.message ?? 'Unknown error')
           }
 
@@ -220,7 +165,6 @@ export default class TwtmfCrawler {
         }
       }
 
-      logger.info(`Start getting tweet: ${id}`)
       this.newPage(`https://twitter.com/_/status/${id}`, responseHandler)
     })
   }

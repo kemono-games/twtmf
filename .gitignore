@@ -33,5 +33,5 @@ build/
 # dist
 dist/
 
-.env*
+.env.*.local
 logs
